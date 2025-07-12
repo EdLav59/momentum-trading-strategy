@@ -79,7 +79,7 @@ class MomentumStrategy:
         print(f"Winner/Loser Percentile: Top/Bottom {self.top_percentile}%")
         print("=" * 60)
     
-def fetch_data(self):
+    def fetch_data(self):
         """Download historical price data from Yahoo Finance"""
         print("\n[1/5] Fetching historical data...")
         
@@ -110,7 +110,7 @@ def fetch_data(self):
         self.returns_data = self.price_data.pct_change().dropna()
         
         return self.price_data
-
+    
     def calculate_momentum_scores(self, start_date, end_date):
         """Calculate momentum scores for the formation period"""
         # Get returns for the formation period
