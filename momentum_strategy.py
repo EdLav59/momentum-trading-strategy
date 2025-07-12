@@ -79,38 +79,34 @@ class MomentumStrategy:
         print(f"Winner/Loser Percentile: Top/Bottom {self.top_percentile}%")
         print("=" * 60)
     
-    def fetch_data(self):
-        """Download historical price data from Yahoo Finance"""
-        print("\n[1/5] Fetching historical data...")
-        
-        # Download all data at once for efficiency
-        self.price_data = yf.download(
-            self.tickers,
-            start=self.start_date,
-            end=self.end_date,
-            progress=True
-        )['Adj Close']
-        
-        # Handle single ticker case
-        if len(self.tickers) == 1:
-            self.price_data = pd.DataFrame(self.price_data)
-            self.price_data.columns = self.tickers
-        
-        # Remove any stocks with too much missing data
-        initial_stocks = self.price_data.shape[1]
-        self.price_data = self.price_data.dropna(thresh=len(self.price_data)*0.8, axis=1)
-        removed_stocks = initial_stocks - self.price_data.shape[1]
-        
-        if removed_stocks > 0:
-            print(f"  Removed {removed_stocks} stocks due to insufficient data")
-        
-        print(f"Data downloaded: {self.price_data.shape[1]} stocks, {len(self.price_data)} trading days")
-        
-        # Calculate returns
-        self.returns_data = self.price_data.pct_change().dropna()
-        
-        return self.price_data
-    
+def fetch_data(self):
+    """Download historical price data from Yahoo Finance one by one"""
+    print("\n[1/5] Fetching historical data (one-by-one)...")
+
+    data = pd.DataFrame()
+
+    for ticker in self.tickers:
+        try:
+            df = yf.download(ticker, start=self.start_date, end=self.end_date, progress=False)['Adj Close']
+            data[ticker] = df
+        except Exception as e:
+            print(f"  Failed to get {ticker}: {e}")
+
+    # Remove any stocks with too much missing data
+    initial_stocks = data.shape[1]
+    self.price_data = data.dropna(thresh=len(data)*0.8, axis=1)
+    removed_stocks = initial_stocks - self.price_data.shape[1]
+
+    if removed_stocks > 0:
+        print(f"  Removed {removed_stocks} stocks due to insufficient data")
+
+    print(f"Data downloaded: {self.price_data.shape[1]} stocks, {len(self.price_data)} trading days")
+
+    # Calculate returns
+    self.returns_data = self.price_data.pct_change().dropna()
+
+    return self.price_data
+
     def calculate_momentum_scores(self, start_date, end_date):
         """Calculate momentum scores for the formation period"""
         # Get returns for the formation period
