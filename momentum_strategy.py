@@ -82,33 +82,44 @@ class MomentumStrategy:
     def fetch_data(self):
         """Download historical price data from Yahoo Finance"""
         print("\n[1/5] Fetching historical data...")
-        
         # Download all data at once for efficiency
-        self.price_data = yf.download(
+        raw_data = yf.download(
             self.tickers,
             start=self.start_date,
             end=self.end_date,
             progress=True
-        )['Adj Close']
-        
-        # Handle single ticker case
-        if len(self.tickers) == 1:
-            self.price_data = pd.DataFrame(self.price_data)
-            self.price_data.columns = self.tickers
-        
+        )
+        # Handle new yfinance structure: MultiIndex columns
+        if isinstance(raw_data.columns, pd.MultiIndex):
+            if 'Adj Close' in raw_data.columns.get_level_values(0):
+                self.price_data = raw_data['Adj Close']
+            elif 'Close' in raw_data.columns.get_level_values(0):
+                self.price_data = raw_data['Close']
+            else:
+                print("\nERROR: Neither 'Adj Close' nor 'Close' found in downloaded data.")
+                raise RuntimeError("No valid price data available for analysis.")
+        else:
+            # Single ticker or flat columns
+            if 'Adj Close' in raw_data.columns:
+                self.price_data = raw_data['Adj Close'].to_frame()
+            elif 'Close' in raw_data.columns:
+                self.price_data = raw_data['Close'].to_frame()
+            else:
+                print("\nERROR: Neither 'Adj Close' nor 'Close' found in downloaded data.")
+                raise RuntimeError("No valid price data available for analysis.")
         # Remove any stocks with too much missing data
         initial_stocks = self.price_data.shape[1]
         self.price_data = self.price_data.dropna(thresh=len(self.price_data)*0.8, axis=1)
         removed_stocks = initial_stocks - self.price_data.shape[1]
-        
         if removed_stocks > 0:
             print(f"  Removed {removed_stocks} stocks due to insufficient data")
-        
+        # Error handling for empty data
+        if self.price_data.empty or self.price_data.shape[1] == 0:
+            print("\nERROR: No price data could be downloaded. Please check your internet connection, yfinance version, or ticker symbols.")
+            raise RuntimeError("No price data available for analysis.")
         print(f"Data downloaded: {self.price_data.shape[1]} stocks, {len(self.price_data)} trading days")
-        
         # Calculate returns
         self.returns_data = self.price_data.pct_change().dropna()
-        
         return self.price_data
     
     def calculate_momentum_scores(self, start_date, end_date):
